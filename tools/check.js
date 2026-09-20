@@ -438,8 +438,64 @@ if (unstable) {
   problems.push(`workspace order: desiredOrder is not idempotent — ${unstable}`);
 }
 
-if (problems.length) {
-  console.error(problems.join('\n'));
-  process.exit(1);
+// A failed label read must not erase the labels.
+//
+// `workspacesAsync` answers `[]` both for a timed-out call and for a session
+// with nothing open, so `labels()` cannot tell them apart and has to treat an
+// empty list as the failure it almost always is — the pane asking is itself in
+// a workspace. Committing it would blank every group header to a bare id, and
+// the next good read would redraw every one of them; with the header
+// fingerprint now sensitive to labels, a flapping socket rewrites the whole
+// panel on each swing.
+//
+// Run rather than read. The guard is one condition, which is exactly the shape
+// someone tidies away, so the real module is driven with its two reads
+// replaced — the only way to reach the failure branch at all. Everything else
+// in this file is synchronous; this is why the verdict is awaited.
+async function labelsSurviveAFailedRead() {
+  const herdr = require('../lib/herdr');
+  const realWorkspaces = herdr.workspacesAsync;
+  const realTabs = herdr.tabsAsync;
+  // Comfortably past any label TTL, so each call re-reads rather than
+  // short-circuiting on the cache.
+  const LATER = 60000;
+  try {
+    herdr.tabsAsync = async () => [{ tab_id: 't1', label: '1' }];
+    herdr.workspacesAsync = async () => [{ workspace_id: 'w1', label: 'radar' }];
+    const first = await state.labels(0);
+    if (first.workspaces.get('w1') !== 'radar') {
+      problems.push(
+        `labels: a good read should have labelled w1 'radar', got ${JSON.stringify(first.workspaces.get('w1'))}`,
+      );
+      return;
+    }
+    // The only way this read can express failure.
+    herdr.workspacesAsync = async () => [];
+    const after = await state.labels(LATER);
+    if (after.workspaces.get('w1') !== 'radar') {
+      problems.push(
+        'labels: an empty workspace list replaced the cached labels — every group header ' +
+          'falls back to its bare id until the next good read',
+      );
+    }
+    // And the cache is not frozen: a good read afterwards still lands.
+    herdr.workspacesAsync = async () => [{ workspace_id: 'w1', label: 'renamed' }];
+    const recovered = await state.labels(2 * LATER);
+    if (recovered.workspaces.get('w1') !== 'renamed') {
+      problems.push('labels: a good read after a failed one did not refresh the cache');
+    }
+  } finally {
+    herdr.workspacesAsync = realWorkspaces;
+    herdr.tabsAsync = realTabs;
+  }
 }
-console.log('ok');
+
+labelsSurviveAFailedRead()
+  .catch((error) => problems.push(`labels: the check itself threw — ${error.message}`))
+  .then(() => {
+    if (problems.length) {
+      console.error(problems.join('\n'));
+      process.exit(1);
+    }
+    console.log('ok');
+  });

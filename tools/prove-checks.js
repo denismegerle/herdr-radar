@@ -193,6 +193,15 @@ const cases = [
     'title: vendor name always wins, so real titles are lost',
   ],
 
+  // lib/state.js — a failed label read must not erase the labels. The guard is
+  // one condition; this is what removing it costs.
+  [
+    'lib/state.js',
+    'if (tabs.size > 0 && workspaces.size > 0) Object.assign(cache,',
+    'if (tabs.size > 0) Object.assign(cache,',
+    'labels: an empty workspace list wipes the cached labels (shipped v1.0.0–v1.3.11)',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
