@@ -205,6 +205,69 @@ for (const variant of ['light', 'dark']) {
   }
 }
 
+// A vendor this plugin can name never goes nameless.
+//
+// The row is `logo · title`. When the title says nothing the vendor's name
+// takes its place, and the one case that was missed is the one that happens
+// most: a pane with no title at all. `locationOnly()` answers false for an
+// empty string — it is asking "is this title only a location", and an absent
+// title is not — so the fallback never ran and Antigravity and codex rows drew
+// a logo with nothing beside it (#10). The same hole swallowed a title that was
+// nothing but the attention bracket, which strips to empty here.
+//
+// Stated as the property the row actually needs, and run against the real pair
+// of functions, since copying the stripping regex into this file would only
+// move the drift somewhere else.
+const { DISPLAY } = require('../lib/logos');
+const CWD = '/home/u/src/notes';
+const blank = (value) => typeof value !== 'string' || value.trim() === '';
+// Titles that say nothing about which agent this is. The last two arrive
+// non-empty and are emptied by the strip, which is why it runs for real.
+const SAYS_NOTHING = ['', '   ', '\t\r\n ', CWD, '  ' + CWD + '  ', 'notes', CWD + ': agy', '[!]', '[ · ] '];
+// Not reachable from the call site, which only ever passes a string, but the
+// function is exported now and a caller that hands it nothing should still get
+// a name rather than a crash or a blank.
+const NOT_A_STRING = [null, undefined, 0, {}];
+for (const [agent, display] of Object.entries(DISPLAY)) {
+  if (!display) continue;
+  for (const raw of SAYS_NOTHING) {
+    const resolved = state.vendorTitle(agent, state.stripVendorPulse(raw), CWD);
+    if (resolved !== display) {
+      problems.push(
+        `vendorTitle(${JSON.stringify(agent)}, ${JSON.stringify(raw)}) is ${JSON.stringify(resolved)}, ` +
+          `not ${JSON.stringify(display)} — that row draws a logo with no name beside it`,
+      );
+    }
+  }
+  for (const raw of NOT_A_STRING) {
+    if (blank(state.vendorTitle(agent, raw, CWD))) {
+      problems.push(`vendorTitle(${JSON.stringify(agent)}, ${String(raw)}) is blank; it should still name the vendor`);
+    }
+  }
+}
+// And the other half: a title that does say something keeps its words. Without
+// this, "always return the vendor name" would satisfy everything above.
+for (const [raw, want] of [
+  ['Fixing the parser', 'Fixing the parser'],
+  ['  Fixing the parser  ', 'Fixing the parser'],
+  ['Fixing  the  parser', 'Fixing  the  parser'],
+  ['[!] Fixing the parser', 'Fixing the parser'],
+  ['notes: a real title', 'notes: a real title'],
+]) {
+  const resolved = state.vendorTitle('claude', state.stripVendorPulse(raw), CWD);
+  if (resolved !== want) {
+    problems.push(
+      `vendorTitle('claude', ${JSON.stringify(raw)}) is ${JSON.stringify(resolved)}, not ${JSON.stringify(want)}`,
+    );
+  }
+}
+// An agent with no name of its own has nothing to fall back to, and an empty
+// string is the right answer: stateTokens turns it into a null token, which
+// clears the cell, where a blank string would leave one drawn and empty.
+if (state.vendorTitle('nosuchvendor', '', CWD) !== '') {
+  problems.push('vendorTitle: an unnamed vendor with no title should resolve to the empty string');
+}
+
 // The ranges the READMEs print have to be the ranges the installer maps.
 //
 // A user on a terminal we do not write config for reads them and maps by hand,

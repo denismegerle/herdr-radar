@@ -135,6 +135,27 @@ const cases = [
     'spaces: cell renamed to a longer name containing the published one',
   ],
 
+  // lib/state.js — a vendor we can name must never end up nameless (#10).
+  [
+    'lib/state.js',
+    'if (!clean || locationOnly(clean, cwd)) return nameFor(agent) ?? clean;',
+    'if (locationOnly(clean, cwd)) return nameFor(agent) ?? clean;',
+    'title: no fallback for an empty title (#10, shipped v1.0.0–v1.3.9)',
+  ],
+  [
+    'lib/state.js',
+    "  const clean = typeof title === 'string' ? title.trim() : '';",
+    "  const clean = typeof title === 'string' ? title : '';",
+    'title: whitespace-only title not seen as empty',
+  ],
+  // The other direction: a title that says something must keep saying it.
+  [
+    'lib/state.js',
+    'if (!clean || locationOnly(clean, cwd)) return nameFor(agent) ?? clean;\n  return clean;',
+    'return nameFor(agent) ?? clean;',
+    'title: vendor name always wins, so real titles are lost',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
