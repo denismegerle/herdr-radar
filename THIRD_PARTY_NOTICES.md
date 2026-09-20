@@ -4,9 +4,12 @@ This project is a fork of [qintmb/herdr-icon-agent-ui](https://github.com/qintmb
 (MIT). The icon font, the SVG marks and the glyph design are inherited from it; the runtime was
 rewritten. See `LICENSE`.
 
-Font marks in `assets/svg/` are sourced from the following projects. Marks identify third-party products and do not imply affiliation or endorsement.
+The marks built into the font come from `tools/svg/`, and the same shapes appear beside
+each vendor's name in the READMEs from `assets/marks/`. The table below names where a mark
+was taken from, or — where it was not taken from a published icon set — who owns the brand
+it depicts. Marks identify third-party products and do not imply affiliation or endorsement.
 
-| Icon | Source |
+| Icon | Source or owner |
 |---|---|
 | claude | Anthropic `cwc-workshops` (Apache-2.0) |
 | codex | OpenAI `codex` (Apache-2.0) |

@@ -183,7 +183,9 @@ const vendorKeys = {
     .readdirSync(path.join(root, 'assets', 'marks'))
     .filter((f) => f.endsWith('.svg'))
     .map((f) => f.slice(0, -'.svg'.length)),
-  'THIRD_PARTY_NOTICES.md': [...notices.matchAll(/^\| ([a-z][a-z0-9_]*) \|/gm)].map(([, key]) => key),
+  // Padding around the cell is legal Markdown and would otherwise read as a
+  // missing vendor — a false alarm on a row that is perfectly correct.
+  'THIRD_PARTY_NOTICES.md': [...notices.matchAll(/^\|\s*([a-z][a-z0-9_]*)\s*\|/gm)].map(([, key]) => key),
 };
 const everyVendor = new Set(Object.values(vendorKeys).flat());
 for (const [where, keys] of Object.entries(vendorKeys)) {
@@ -202,13 +204,54 @@ const sources = fs
 for (const vendor of everyVendor) {
   if (!sources.includes(vendor)) problems.push(`tools/svg: no ${vendor}.svg to build that vendor's glyph from`);
 }
-// The notices state a glyph count, and it was four vendors out of date.
-const claimed = /(\d+) icon glyphs/.exec(notices);
-const built = declared.length;
-if (!claimed) {
-  problems.push('THIRD_PARTY_NOTICES.md: no longer states how many glyphs are patched in');
-} else if (Number(claimed[1]) !== built) {
-  problems.push(`THIRD_PARTY_NOTICES.md: says ${claimed[1]} icon glyphs, but the font is built from ${built}`);
+// Counts written out in prose go stale the moment a vendor is added, and three
+// of them had: the notices claimed 29 glyphs against 30, and all three READMEs
+// still said twenty-three vendors after the 24th landed. Each is spelled for
+// its own language, so the pattern is per file rather than one shared regex.
+const vendorCount = Object.keys(logos.PUA).length;
+const counted = [
+  ['THIRD_PARTY_NOTICES.md', notices, /(\d+) icon glyphs/, declared.length, 'glyphs the font is built from'],
+  ['README.md', null, /(Twenty-\w+) vendors have a mark/, vendorCount, 'vendors with a mark'],
+  [
+    'README.zh-CN.md',
+    null,
+    /([\u4e00-\u9fff]+)\u5bb6\u6709\u81ea\u5df1\u7684\u6807\u8bb0/,
+    vendorCount,
+    'vendors with a mark',
+  ],
+  [
+    'README.ja.md',
+    null,
+    /(\d+) \u306e\u30d9\u30f3\u30c0\u30fc\u304c\u72ec\u81ea\u306e\u30de\u30fc\u30af/,
+    vendorCount,
+    'vendors with a mark',
+  ],
+];
+// Spelled-out numerals, only as far as this project can plausibly grow.
+const WORDS = ['Twenty-one', 'Twenty-two', 'Twenty-three', 'Twenty-four', 'Twenty-five', 'Twenty-six'];
+const CJK = [
+  '\u4e8c\u5341\u4e00',
+  '\u4e8c\u5341\u4e8c',
+  '\u4e8c\u5341\u4e09',
+  '\u4e8c\u5341\u56db',
+  '\u4e8c\u5341\u4e94',
+  '\u4e8c\u5341\u516d',
+];
+const asNumber = (text) => {
+  if (/^\d+$/.test(text)) return Number(text);
+  const word = WORDS.indexOf(text);
+  if (word !== -1) return 21 + word;
+  const cjk = CJK.indexOf(text);
+  return cjk === -1 ? NaN : 21 + cjk;
+};
+for (const [file, preloaded, pattern, want, what] of counted) {
+  const text = preloaded ?? fs.readFileSync(path.join(root, file), 'utf8');
+  const found = pattern.exec(text);
+  if (!found) {
+    problems.push(`${file}: no longer states how many ${what} there are, or says it differently`);
+  } else if (asNumber(found[1]) !== want) {
+    problems.push(`${file}: says ${found[1]} where there are ${want} ${what}`);
+  }
 }
 
 // Every display a pane can carry has to reach the Spaces column, and has to

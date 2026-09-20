@@ -177,7 +177,7 @@ Gemini are told apart there too.
 
 ## Which agents it knows
 
-Twenty-three vendors have a mark of their own:
+Twenty-four vendors have a mark of their own:
 
 <!-- prettier-ignore -->
 | | | | |

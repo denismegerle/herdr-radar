@@ -150,6 +150,26 @@ const cases = [
     '29 icon glyphs',
     'vendors: the notices state a stale glyph count (shipped)',
   ],
+  // The same staleness in prose, once per language — each spells its number
+  // its own way, so each needs its own case.
+  [
+    'README.md',
+    'Twenty-four vendors have a mark',
+    'Twenty-three vendors have a mark',
+    'vendors: English README undercounts the roster (shipped v1.3.6–v1.3.10)',
+  ],
+  [
+    'README.zh-CN.md',
+    '\u4e8c\u5341\u56db\u5bb6\u6709\u81ea\u5df1\u7684\u6807\u8bb0',
+    '\u4e8c\u5341\u4e09\u5bb6\u6709\u81ea\u5df1\u7684\u6807\u8bb0',
+    'vendors: Chinese README undercounts the roster (shipped)',
+  ],
+  [
+    'README.ja.md',
+    '24 \u306e\u30d9\u30f3\u30c0\u30fc\u304c\u72ec\u81ea\u306e\u30de\u30fc\u30af',
+    '23 \u306e\u30d9\u30f3\u30c0\u30fc\u304c\u72ec\u81ea\u306e\u30de\u30fc\u30af',
+    'vendors: Japanese README undercounts the roster (shipped)',
+  ],
   ['lib/logos.js', "  glm: 'GLM',", '', 'vendors: a vendor dropped from one of the three tables in logos.js'],
 
   // lib/state.js — a vendor we can name must never end up nameless (#10).
