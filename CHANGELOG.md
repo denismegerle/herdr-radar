@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.11 — 2026-09-21
+
+- **`omp` is Oh My Pi, not OhMyPosh.** The mark was always Oh My Pi's — the
+  third-party notices have credited `can1357/oh-my-pi` since the first release
+  — but the display name beside it, and the vendor table in all three READMEs,
+  named a prompt theme engine instead. Herdr's own detection puts `omp` next to
+  `pi` and gives it a `--resume` taking a session id; a prompt engine has no
+  sessions to resume.
+
+  From [#12](https://github.com/hhdebb/herdr-radar/pull/12), by @bubabi.
+
+- **Three vendors had their marks drawn and never credited.** `amp`, `devin`
+  and `qodercli` have shipped since 1.3.5 with no line in
+  `THIRD_PARTY_NOTICES.md`. They have one now. The same file said the patched
+  font carries 29 icon glyphs where it carries 30.
+
+  Adding a vendor touches six places — a codepoint, a source mark, a built
+  mark, three tables in `lib/logos.js`, and the notices — and nothing compared
+  them, which is how both of these got through and how the wrong display name
+  above sat beside the right attribution for eleven releases. `npm run check`
+  now requires all six to name the same set of vendors, and the notices to
+  state the count the font is actually built from. It cannot check that the
+  wording is right; that is the one place a person writes prose.
+
+- **Counts and a path in the docs were stale too.** All three READMEs said
+  twenty-three vendors four releases after the 24th arrived, and the notices
+  pointed at a directory this repository has never had. Both are checked now.
+
 ## 1.3.10 — 2026-09-21
 
 - **An agent that sets no terminal title keeps its name.** The row is
