@@ -156,6 +156,61 @@ for (const { name, point } of declared) {
   }
 }
 
+// Adding a vendor means touching six places, and missing one is silent.
+//
+// A vendor needs a codepoint, a glyph, a mark to build it from, a PUA entry, a
+// text fallback, a display name, and a line in the third-party notices. Nothing
+// held those together, and three of them drifted: `amp`, `devin` and `qodercli`
+// went five releases with their marks drawn and their sources uncredited, which
+// is the one kind of drift here that is not merely cosmetic. The display name
+// for `omp` said OhMyPosh — a prompt theme engine — while the notices had
+// credited oh-my-pi correctly all along (#12).
+//
+// The notices are the only place a human must write prose, so this cannot check
+// that the words are right; it checks that no vendor is missing from any of the
+// lists, which is what went wrong each time.
+const logos = require('../lib/logos');
+const notices = fs.readFileSync(path.join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8');
+const vendorKeys = {
+  'logos.js PUA': Object.keys(logos.PUA),
+  'logos.js TEXT': Object.keys(logos.TEXT),
+  'logos.js DISPLAY': Object.keys(logos.DISPLAY),
+  // `declared` is already every key assigned a codepoint, which leaves out the
+  // file's `family` and `version` lines. The state glyphs share the file but
+  // are not vendors.
+  'codepoints.toml': declared.map(({ name }) => name).filter((name) => !name.startsWith('state_')),
+  'assets/marks': fs
+    .readdirSync(path.join(root, 'assets', 'marks'))
+    .filter((f) => f.endsWith('.svg'))
+    .map((f) => f.slice(0, -'.svg'.length)),
+  'THIRD_PARTY_NOTICES.md': [...notices.matchAll(/^\| ([a-z][a-z0-9_]*) \|/gm)].map(([, key]) => key),
+};
+const everyVendor = new Set(Object.values(vendorKeys).flat());
+for (const [where, keys] of Object.entries(vendorKeys)) {
+  const held = new Set(keys);
+  for (const vendor of everyVendor) {
+    if (!held.has(vendor)) problems.push(`${where}: no entry for '${vendor}', which every other list has`);
+  }
+}
+// tools/svg/ is allowed the state glyphs on top of the vendors, so it is
+// checked one way only: a mark with nothing pointing at it is dead weight, but
+// a vendor with no mark cannot be built at all.
+const sources = fs
+  .readdirSync(path.join(root, 'tools', 'svg'))
+  .filter((f) => f.endsWith('.svg'))
+  .map((f) => f.slice(0, -'.svg'.length));
+for (const vendor of everyVendor) {
+  if (!sources.includes(vendor)) problems.push(`tools/svg: no ${vendor}.svg to build that vendor's glyph from`);
+}
+// The notices state a glyph count, and it was four vendors out of date.
+const claimed = /(\d+) icon glyphs/.exec(notices);
+const built = declared.length;
+if (!claimed) {
+  problems.push('THIRD_PARTY_NOTICES.md: no longer states how many glyphs are patched in');
+} else if (Number(claimed[1]) !== built) {
+  problems.push(`THIRD_PARTY_NOTICES.md: says ${claimed[1]} icon glyphs, but the font is built from ${built}`);
+}
+
 // Every display a pane can carry has to reach the Spaces column, and has to
 // land on a token that exists.
 //
@@ -218,7 +273,7 @@ for (const variant of ['light', 'dark']) {
 // Stated as the property the row actually needs, and run against the real pair
 // of functions, since copying the stripping regex into this file would only
 // move the drift somewhere else.
-const { DISPLAY } = require('../lib/logos');
+const { DISPLAY } = logos;
 const CWD = '/home/u/src/notes';
 const blank = (value) => typeof value !== 'string' || value.trim() === '';
 // Titles that say nothing about which agent this is. The last two arrive

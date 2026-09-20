@@ -135,6 +135,23 @@ const cases = [
     'spaces: cell renamed to a longer name containing the published one',
   ],
 
+  // THIRD_PARTY_NOTICES.md — the roster has to name every vendor. All three
+  // shapes below were real: three marks went uncredited for five releases, and
+  // the glyph count sat four vendors out of date.
+  [
+    'THIRD_PARTY_NOTICES.md',
+    '| devin | Cognition Devin (proprietary) |\n',
+    '',
+    'vendors: a mark drawn but never credited (shipped v1.3.5–v1.3.10)',
+  ],
+  [
+    'THIRD_PARTY_NOTICES.md',
+    '30 icon glyphs',
+    '29 icon glyphs',
+    'vendors: the notices state a stale glyph count (shipped)',
+  ],
+  ['lib/logos.js', "  glm: 'GLM',", '', 'vendors: a vendor dropped from one of the three tables in logos.js'],
+
   // lib/state.js — a vendor we can name must never end up nameless (#10).
   [
     'lib/state.js',
