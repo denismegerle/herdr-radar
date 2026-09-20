@@ -478,6 +478,19 @@ async function labelsSurviveAFailedRead() {
           'falls back to its bare id until the next good read',
       );
     }
+    // A failure takes the TTL with it, or every frame asks again for as long
+    // as the failure lasts.
+    let reads = 0;
+    herdr.workspacesAsync = async () => {
+      reads += 1;
+      return [];
+    };
+    await state.labels(LATER + 1);
+    await state.labels(LATER + 2);
+    if (reads > 1) {
+      problems.push(`labels: ${reads} reads inside one TTL after a failure; a failed read should take the TTL too`);
+    }
+
     // And the cache is not frozen: a good read afterwards still lands.
     herdr.workspacesAsync = async () => [{ workspace_id: 'w1', label: 'renamed' }];
     const recovered = await state.labels(2 * LATER);

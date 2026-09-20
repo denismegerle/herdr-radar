@@ -197,9 +197,15 @@ const cases = [
   // one condition; this is what removing it costs.
   [
     'lib/state.js',
-    'if (tabs.size > 0 && workspaces.size > 0) Object.assign(cache,',
-    'if (tabs.size > 0) Object.assign(cache,',
+    'if (tabs.size > 0 && workspaces.size > 0) {',
+    'if (tabs.size > 0) {',
     'labels: an empty workspace list wipes the cached labels (shipped v1.0.0–v1.3.11)',
+  ],
+  [
+    'lib/state.js',
+    '  } else if (cache.tabs.size > 0) {',
+    '  } else if (false) {',
+    'labels: a failed read does not take the TTL, so every frame asks again',
   ],
 
   // lib/workspace-order.js — the order must settle or it loops over IPC.
