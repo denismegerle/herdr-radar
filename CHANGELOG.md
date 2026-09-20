@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.10 — 2026-09-21
+
+- **An agent that sets no terminal title keeps its name.** The row is
+  `logo · title`, and when the title says nothing the vendor's name takes its
+  place — but the test for "says nothing" asked only whether the title was
+  *only a location*, and an absent title is not a location. Agents that never
+  set an OSC title (Antigravity, codex) drew a logo with nothing beside it, as
+  did any pane before its shell reported one.
+
+  The same hole swallowed a title that was nothing but the attention bracket:
+  it arrives non-empty and is emptied here by the strip that removes it.
+
+  Outer whitespace on a real title is now normalised away, which it was not
+  before. The row's indent comes from its own prefix, so that padding was
+  either invisible or a stray gap inside the cell.
+
+  From [#10](https://github.com/hhdebb/herdr-radar/pull/10), by @CLOUDWERX-DEV.
+
 ## 1.3.9 — 2026-09-20
 
 - **A workspace with a parked agent no longer reads as empty.** The Spaces
