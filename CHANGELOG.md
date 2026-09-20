@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.3.12 — 2026-09-21
+
+- **A group header follows its workspace's name.** The sidebar rewrites the
+  group furniture only when a fingerprint of the layout changes, and that
+  fingerprint left out the one thing the header is made of — the workspace
+  label. A workspace first drawn while its label was still being fetched wore
+  its bare id, and nothing afterwards moved the fingerprint: the heartbeat and
+  the catch-all deadline both just draw again from the same remembered layout.
+  Renaming a workspace now moves its header within one label refresh.
+
+  From [#13](https://github.com/hhdebb/herdr-radar/pull/13), by @bubabi.
+
+- **A failed label read no longer blanks every header.** The read cannot report
+  failure — it answers an empty list for a timed-out call and for a session
+  with nothing open alike — so a single failed refresh replaced every cached
+  label with nothing, drew every group header as a bare id, and drew them all
+  again on the next good read. With the fingerprint above now sensitive to
+  labels, a flapping socket would have rewritten the whole panel on each swing.
+  The labels are kept, and a failed read waits out the same interval a good one
+  does rather than retrying on every frame.
+
 ## 1.3.11 — 2026-09-21
 
 - **`omp` is Oh My Pi, not OhMyPosh.** The mark was always Oh My Pi's — the
