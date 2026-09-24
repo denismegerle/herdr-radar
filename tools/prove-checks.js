@@ -300,6 +300,44 @@ const cases = [
     'test/dead-targets.test.js',
   ],
 
+  // lib/toml-blocks.js — a table the user claims with a dotted key or an
+  // inline table is as taken as one with a header (#22).
+  [
+    'lib/toml-blocks.js',
+    'if (full === table || full.startsWith(under)) return true;',
+    'if (full === table) return true;',
+    'config: a dotted key under the parent table slips past (#22, shipped v1.0.0-v1.3.14)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
+    'if (key[2] && table.startsWith(`${full}.`)) return true;',
+    '',
+    'config: an inline table above ours slips past (#22)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+
+  // lib/managed-config.js — a write Herdr cannot parse is undone; one it
+  // merely warns about is not (#22).
+  [
+    'lib/managed-config.js',
+    'if (check.parses) return null;',
+    'if (check.ok) return null;',
+    'config: a stray key rolls back a working install (#22)',
+    true,
+    'test/checked-write.test.js',
+  ],
+  [
+    'lib/herdr.js',
+    'parses: !/config parse error/.test(output)',
+    'parses: result.status === 0',
+    'config: the exit code stands in for the parse verdict (#22)',
+    true,
+    'test/checked-write.test.js',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
