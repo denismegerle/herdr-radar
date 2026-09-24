@@ -9,6 +9,7 @@
   },
   "scripts": {
     "check": "node tools/check.js",
+    "test": "node --test",
     "prove": "node tools/prove-checks.js",
     "format": "prettier --check .",
     "format:fix": "prettier --write ."

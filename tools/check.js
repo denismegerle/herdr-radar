@@ -1,8 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
-// `npm run check`: the declaration files agree with lib/identity.js, and every
-// script parses. No test runner needed for a zero-dependency plugin.
+// `npm run check`: invariants — the things in this repository that have to
+// agree with each other and drifted apart once. The declaration files and
+// lib/identity.js, the vendor roster across six places, the ranges the READMEs
+// print and the ranges the installer maps, every script parsing. Each is read
+// straight off the source, synchronously, and needs nothing set up.
+//
+// Behaviour belongs in test/ instead (`npm test`, Node's built-in runner, so
+// still no dependency): anything that has to replace a module's function, run
+// async, or leave a process in a known state afterwards. It lived here for a
+// while and the file grew a promise chain to end on; that is the sign.
+//
+// Both are proved able to fail by tools/prove-checks.js.
 
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -438,71 +448,6 @@ if (unstable) {
   problems.push(`workspace order: desiredOrder is not idempotent — ${unstable}`);
 }
 
-// A failed label read must not erase the labels.
-//
-// `workspacesAsync` answers `[]` both for a timed-out call and for a session
-// with nothing open, so `labels()` cannot tell them apart and has to treat an
-// empty list as the failure it almost always is — the pane asking is itself in
-// a workspace. Committing it would blank every group header to a bare id, and
-// the next good read would redraw every one of them; with the header
-// fingerprint now sensitive to labels, a flapping socket rewrites the whole
-// panel on each swing.
-//
-// Run rather than read. The guard is one condition, which is exactly the shape
-// someone tidies away, so the real module is driven with its two reads
-// replaced — the only way to reach the failure branch at all. Everything else
-// in this file is synchronous; this is why the verdict is awaited.
-async function labelsSurviveAFailedRead() {
-  const herdr = require('../lib/herdr');
-  const realWorkspaces = herdr.workspacesAsync;
-  const realTabs = herdr.tabsAsync;
-  // Comfortably past any label TTL, so each call re-reads rather than
-  // short-circuiting on the cache.
-  const LATER = 60000;
-  try {
-    herdr.tabsAsync = async () => [{ tab_id: 't1', label: '1' }];
-    herdr.workspacesAsync = async () => [{ workspace_id: 'w1', label: 'radar' }];
-    const first = await state.labels(0);
-    if (first.workspaces.get('w1') !== 'radar') {
-      problems.push(
-        `labels: a good read should have labelled w1 'radar', got ${JSON.stringify(first.workspaces.get('w1'))}`,
-      );
-      return;
-    }
-    // The only way this read can express failure.
-    herdr.workspacesAsync = async () => [];
-    const after = await state.labels(LATER);
-    if (after.workspaces.get('w1') !== 'radar') {
-      problems.push(
-        'labels: an empty workspace list replaced the cached labels — every group header ' +
-          'falls back to its bare id until the next good read',
-      );
-    }
-    // A failure takes the TTL with it, or every frame asks again for as long
-    // as the failure lasts.
-    let reads = 0;
-    herdr.workspacesAsync = async () => {
-      reads += 1;
-      return [];
-    };
-    await state.labels(LATER + 1);
-    await state.labels(LATER + 2);
-    if (reads > 1) {
-      problems.push(`labels: ${reads} reads inside one TTL after a failure; a failed read should take the TTL too`);
-    }
-
-    // And the cache is not frozen: a good read afterwards still lands.
-    herdr.workspacesAsync = async () => [{ workspace_id: 'w1', label: 'renamed' }];
-    const recovered = await state.labels(2 * LATER);
-    if (recovered.workspaces.get('w1') !== 'renamed') {
-      problems.push('labels: a good read after a failed one did not refresh the cache');
-    }
-  } finally {
-    herdr.workspacesAsync = realWorkspaces;
-    herdr.tabsAsync = realTabs;
-  }
-}
-
 // Liveness is asked of the endpoint, never of a pid file.
 //
 // `kill(pid, 0)` on the pid file only says that SOME process has the number,
@@ -522,135 +467,8 @@ for (const dir of ['lib', 'bin']) {
   }
 }
 
-// A wall clock stepped backwards must not stop the frames.
-//
-// The frame floor used to measure `Date.now()` against the last frame, and a
-// backward step made that negative: every wake looked too soon, was pushed to
-// a moment minutes in the future, and the panel stopped drawing for as long as
-// the step while the process answered pings (#18). Driven for real, on the
-// scheduler's own default clock — that default is the thing under test — with
-// its timers collected so none outlives the check, whatever clock it runs on.
-async function framesSurviveAClockStep() {
-  const { createScheduler } = require('../lib/scheduler');
-  const realNow = Date.now;
-  const pending = new Set();
-  const setTimer = (fn, ms) => {
-    const handle = setTimeout(() => {
-      pending.delete(handle);
-      fn();
-    }, ms);
-    pending.add(handle);
-    return handle;
-  };
-  const clearTimer = (handle) => {
-    pending.delete(handle);
-    clearTimeout(handle);
-  };
-  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  let frames = 0;
-  const scheduler = createScheduler({
-    floorMs: 120,
-    pollMs: 150,
-    debounceMs: 50,
-    setTimer,
-    clearTimer,
-    run: async () => {
-      frames += 1;
-    },
-  });
-  try {
-    scheduler.wake();
-    await pause(300);
-    const before = frames;
-    // NTP correcting a fast clock by six minutes, the way #18's machine booted.
-    Date.now = () => realNow.call(Date) - 6 * 60 * 1000;
-    for (let i = 0; i < 4; i += 1) {
-      scheduler.wake();
-      await pause(220);
-    }
-    if (before < 1) {
-      problems.push('scheduler: no frame at all before the clock step — the check itself is broken');
-    } else if (frames - before < 3) {
-      problems.push(
-        `scheduler: ${frames - before} frame(s) in four wakes after the wall clock stepped back six ` +
-          'minutes — the floor is reading the wall clock again, and the panel freezes for the length of the step',
-      );
-    }
-  } finally {
-    Date.now = realNow;
-    for (const handle of pending) clearTimeout(handle);
-  }
+if (problems.length) {
+  console.error(problems.join('\n'));
+  process.exit(1);
 }
-
-// What the watchdog decides from a ping. `stalled` is the state that gets a
-// daemon replaced, so both directions matter: a stall must be named, and a
-// healthy daemon — or one too old to report an age — must not be.
-async function statusReadsThePing() {
-  const control = require('../lib/control');
-  const realRequest = control.request;
-  const alive = { ok: true, pid: 7, fire_age_ms: 900, frame_running_ms: 0 };
-  const cases = [
-    [null, 'none', 'nothing answers the endpoint'],
-    [alive, 'healthy', 'a daemon whose timer fired a second ago'],
-    [{ ...alive, fire_age_ms: state.STALLED_MS + 1 }, 'stalled', 'a daemon whose timer has stopped'],
-    // A slow Herdr: a frame that has been waiting on IPC timeouts for a minute
-    // is still a daemon doing its job, and killing it only starts a replacement
-    // that waits on the same Herdr. This is the case review caught.
-    [{ ...alive, frame_running_ms: 60000 }, 'healthy', 'a minute-long frame against a slow Herdr'],
-    [{ ...alive, frame_running_ms: state.HUNG_FRAME_MS + 1 }, 'stalled', 'a frame that never finishes'],
-    [{ ok: true, pid: 7, uptime_ms: 5 }, 'healthy', 'a pre-upgrade daemon that reports no ages'],
-  ];
-  try {
-    for (const [reply, want, label] of cases) {
-      control.request = async () => reply;
-      const got = (await state.daemonStatus()).state;
-      if (got !== want) problems.push(`daemonStatus: ${label} reads as '${got}', not '${want}'`);
-    }
-  } finally {
-    control.request = realRequest;
-  }
-}
-
-// A long frame keeps the timer firing. The watchdog's thirty-second judgement
-// rests on the heartbeat reaching the scheduler even while a frame is in
-// flight — it only notes a rerun then — so a slow frame must not age the timer.
-async function aLongFrameIsNotASilentTimer() {
-  const { createScheduler } = require('../lib/scheduler');
-  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  let release;
-  const scheduler = createScheduler({
-    floorMs: 120,
-    pollMs: 150,
-    debounceMs: 50,
-    run: () => new Promise((resolve) => (release = resolve)),
-  });
-  scheduler.wake();
-  await pause(300);
-  scheduler.wake();
-  await pause(150);
-  const fireAge = scheduler.fireAgeMs();
-  const running = scheduler.runningForMs();
-  release?.();
-  if (running < 250) {
-    problems.push(`scheduler: a frame in flight for ~400ms reports ${Math.round(running)}ms running`);
-  }
-  if (fireAge > 150) {
-    problems.push(
-      `scheduler: the timer reads ${Math.round(fireAge)}ms silent while a frame is in flight — ` +
-        'a slow frame would look like a dead scheduler and be killed',
-    );
-  }
-}
-
-labelsSurviveAFailedRead()
-  .then(framesSurviveAClockStep)
-  .then(aLongFrameIsNotASilentTimer)
-  .then(statusReadsThePing)
-  .catch((error) => problems.push(`an async check threw — ${error.message}`))
-  .then(() => {
-    if (problems.length) {
-      console.error(problems.join('\n'));
-      process.exit(1);
-    }
-    console.log('ok');
-  });
+console.log('ok');

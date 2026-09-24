@@ -1,13 +1,18 @@
 #!/usr/bin/env node
-// Prove that tools/check.js can fail.
+// Prove that the invariants and the tests can fail.
 //
 // A check that can only pass is not a check, and this repository has had one:
 // a codepoint-range invariant that carried a literal backspace where `\b` was
 // meant, matched nothing, and printed as if it were fine. Each case below puts
-// a known-bad shape back into a source file, runs the invariants, and restores
-// the file; the run fails if a shape that must be caught is not, or if one
-// that must be tolerated is flagged. The shapes are the regressions that were
-// actually shipped or actually proposed, not hypotheticals.
+// a known-bad shape back into a source file, runs whatever is meant to catch
+// it, and restores the file; the run fails if a shape that must be caught is
+// not, or if one that must be tolerated is flagged. The shapes are the
+// regressions that were actually shipped or actually proposed, not
+// hypotheticals.
+//
+// A case is [file, from, to, label, expectCaught = true, via = 'check']. `via`
+// is 'check' for tools/check.js, or the one test file that should go red — only
+// that file runs, so behaviour cases cost a second, not the whole suite.
 //
 // Files are restored byte-for-byte in a finally block, so a failing case does
 // not leave the tree dirty. An interrupted run might; `git status` shows it.
@@ -20,12 +25,19 @@ const { spawnSync } = require('node:child_process');
 const root = path.join(__dirname, '..');
 const EN_DASH = '–';
 
-function runCheck() {
-  const out = spawnSync(process.execPath, [path.join(root, 'tools', 'check.js')], {
-    cwd: root,
-    encoding: 'utf8',
-  });
+// A test that hangs instead of failing is caught all the same: the timeout
+// kills it, and a killed run has no exit code of zero.
+function run(via = 'check') {
+  const args = via === 'check' ? [path.join(root, 'tools', 'check.js')] : ['--test', via];
+  const out = spawnSync(process.execPath, args, { cwd: root, encoding: 'utf8', timeout: 60000 });
   return { code: out.status, text: `${out.stdout}${out.stderr}`.trim() };
+}
+
+// Both halves must be green before and after, or nothing proved means much.
+function allGreen() {
+  const check = run('check');
+  const tests = spawnSync(process.execPath, ['--test'], { cwd: root, encoding: 'utf8', timeout: 120000 });
+  return { ok: check.code === 0 && tests.status === 0, text: `${check.text}\n${tests.stdout}${tests.stderr}`.trim() };
 }
 
 // Anchors are exact source lines. If one goes missing the case throws rather
@@ -200,12 +212,16 @@ const cases = [
     'if (tabs.size > 0 && workspaces.size > 0) {',
     'if (tabs.size > 0) {',
     'labels: an empty workspace list wipes the cached labels (shipped v1.0.0–v1.3.11)',
+    true,
+    'test/labels.test.js',
   ],
   [
     'lib/state.js',
     '  } else if (cache.tabs.size > 0) {',
     '  } else if (false) {',
     'labels: a failed read does not take the TTL, so every frame asks again',
+    true,
+    'test/labels.test.js',
   ],
 
   // The daemon's liveness (#18, #19): frames on a monotonic clock, liveness
@@ -215,12 +231,16 @@ const cases = [
     'clock = () => performance.now(),',
     'clock = () => Date.now(),',
     'daemon: frame floor on the wall clock, so a backward step freezes the panel (#18)',
+    true,
+    'test/scheduler.test.js',
   ],
   [
     'lib/state.js',
     'if (fireAge !== null && fireAge > STALLED_MS) {',
     'if (fireAge !== null && fireAge < STALLED_MS) {',
     'daemon: timer threshold inverted, so healthy daemons get replaced',
+    true,
+    'test/daemon-status.test.js',
   ],
   // The case review caught: judging a frame in flight on the timer's thirty
   // seconds kills a daemon that is only waiting on a slow Herdr.
@@ -229,18 +249,34 @@ const cases = [
     'if (runningFor !== null && runningFor > HUNG_FRAME_MS) {',
     'if (runningFor !== null && runningFor > STALLED_MS) {',
     'daemon: a slow frame judged as a dead timer, so a slow Herdr gets a kill loop',
+    true,
+    'test/daemon-status.test.js',
   ],
   [
     'lib/scheduler.js',
     '    lastFireAt = clock();\n',
     '',
     'daemon: the heartbeat stops counting while a frame runs, so slow frames look stalled',
+    true,
+    'test/scheduler.test.js',
   ],
   [
     'bin/setup.js',
     'state.daemonStatus().then(',
     'state.animatorRunning; state.daemonStatus().then(',
     'daemon: a caller still asks the pid file (#19)',
+  ],
+
+  // lib/control.js — a peer that hangs up without a word must still settle the
+  // request. Without it, a launcher that had just ended a stalled daemon exited
+  // 0 before starting the replacement.
+  [
+    'lib/control.js',
+    "    stream.on('close', () => finish(null));\n",
+    '',
+    'control: a clean hang-up leaves the request unsettled (found testing v1.3.13)',
+    true,
+    'test/control.test.js',
   ],
 
   // lib/workspace-order.js — the order must settle or it loops over IPC.
@@ -266,7 +302,7 @@ const cases = [
   ],
 ];
 
-function withEdit(file, from, to, label, expectCaught = true) {
+function withEdit(file, from, to, label, expectCaught = true, via = 'check') {
   const target = path.join(root, file);
   const original = fs.readFileSync(target);
   const text = original.toString('utf8');
@@ -275,28 +311,36 @@ function withEdit(file, from, to, label, expectCaught = true) {
   let result;
   try {
     fs.writeFileSync(target, text.replace(from, to), 'utf8');
-    result = runCheck();
+    result = run(via);
   } finally {
     fs.writeFileSync(target, original);
   }
   const caught = result.code !== 0;
   const ok = caught === expectCaught;
-  const firstLine = result.text.split('\n').find((line) => /: |block:/.test(line)) ?? result.text.split('\n')[0] ?? '';
+  // The invariants print one problem per line; the test runner prints a tree,
+  // where the failing assertion's own message is the useful line.
+  const lines = result.text.split('\n').map((line) => line.trim());
+  const firstLine =
+    (via === 'check'
+      ? lines.find((line) => /: |block:/.test(line))
+      : lines.find((line) => /^(✖|not ok|error:|AssertionError|Error:)/.test(line) && !/tests? failed/.test(line))) ??
+    lines[0] ??
+    '';
   console.log(`${ok ? 'ok  ' : 'BAD '} ${caught ? 'caught  ' : 'passed  '} ${label}`);
   if (!ok || caught) console.log(`      ${firstLine.slice(0, 140)}`);
   return ok;
 }
 
-const baseline = runCheck();
-if (baseline.code !== 0) {
-  console.error(`baseline check fails; fix that before proving anything:\n${baseline.text}`);
+const baseline = allGreen();
+if (!baseline.ok) {
+  console.error(`the checks or the tests fail as they stand; fix that before proving anything:\n${baseline.text}`);
   process.exit(2);
 }
 
-const results = cases.map(([file, from, to, label, expectCaught]) => withEdit(file, from, to, label, expectCaught));
-const after = runCheck();
-const failed = results.filter((ok) => !ok).length;
-console.log(
-  `\n${results.length - failed}/${results.length} shapes behaved; tree restored: ${after.code === 0 ? 'yes' : 'NO'}`,
+const results = cases.map(([file, from, to, label, expectCaught, via]) =>
+  withEdit(file, from, to, label, expectCaught, via),
 );
-process.exitCode = failed === 0 && after.code === 0 ? 0 : 1;
+const after = allGreen();
+const failed = results.filter((ok) => !ok).length;
+console.log(`\n${results.length - failed}/${results.length} shapes behaved; tree restored: ${after.ok ? 'yes' : 'NO'}`);
+process.exitCode = failed === 0 && after.ok ? 0 : 1;
