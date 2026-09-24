@@ -40,7 +40,20 @@ const free = [
   ['the same key under another table', '[ui]\ncustom.name = "x"'],
   ['a commented-out header', '# [theme.custom]'],
   ['the name inside a value', '[theme]\nname = "[theme.custom]"'],
+  // Codex found this one: a key binding whose command is a heredoc that
+  // writes TOML. The lines inside are text.
+  [
+    'a header inside a multi-line string',
+    '[[keys.command]]\ncommand = """\ncat <<EOF\n  [theme.custom]\nEOF\n"""\n[ui]',
+  ],
+  ['a header inside a literal multi-line string', "[keys]\nx = '''\n[theme.custom]\n'''"],
+  ['a multi-line string closed on its own line', '[keys]\nx = """abc"""\n[ui]\ny = 1'],
 ];
+
+// A string that closes leaves the scanner reading again.
+test('a table after a multi-line string is still seen', () => {
+  assert.equal(claimsTable('[keys]\nx = """\ntext\n"""\n[theme.custom]', 'theme.custom'), true);
+});
 
 for (const [form, toml] of free) {
   test(`${form} does not claim the table`, () => {

@@ -338,6 +338,17 @@ const cases = [
     'test/checked-write.test.js',
   ],
 
+  // lib/toml-blocks.js — a header-shaped line inside a multi-line string is
+  // text, not a claim.
+  [
+    'lib/toml-blocks.js',
+    'if (opened && line.indexOf(opened[1], opened.index + opened[0].length) === -1) quote = opened[1];',
+    '',
+    'config: a TOML snippet inside a key binding claims the table (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
