@@ -375,6 +375,14 @@ const cases = [
   ],
   [
     'lib/toml-blocks.js',
+    'open = Math.max(0, brackets(line.slice(key[0].length - key[2].length)));',
+    'open = 0;',
+    'config: an array element on its own line reads as a header (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
     'if (current === table) return true;',
     'if (current === table || current.startsWith(under)) return true;',
     'config: a sub-table header claims its parent (#22 review)',

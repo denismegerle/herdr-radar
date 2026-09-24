@@ -84,7 +84,18 @@ const free = [
     '[theme]\nx = """abc"""" # """"\n[other] # """\ncustom.name = 1',
   ],
   ['a literal string ending in five quotes', "[theme]\nx = '''abc'''''\n[other]\ncustom.name = 1"],
+  // Codex, fifth round: an array element on a line of its own is not a
+  // header.
+  ['a nested array element shaped like a header', '[theme]\n[other]\nx = [\n["theme"]\n]\ncustom.name = 1'],
+  ['a nested array-of-arrays element', "[theme]\n[other]\nx = [\n[['theme']]\n]\ncustom.name = 1"],
+  ['an array of inline tables, one per line', '[theme]\n[other]\nx = [\n  { custom = 1 },\n]\ncustom.name = 1'],
 ];
+
+// Brackets closed leave the scanner reading again.
+test('a table after a multi-line array is still seen', () => {
+  assert.equal(claimsTable('[other]\nx = [\n  1,\n  [2],\n]\n[theme.custom]', 'theme.custom'), true);
+  assert.equal(claimsTable('[other]\nx = [ [1], [2] ]\n[theme.custom]', 'theme.custom'), true);
+});
 
 // A string that closes leaves the scanner reading again.
 test('a table after a multi-line string is still seen', () => {
