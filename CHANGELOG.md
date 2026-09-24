@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.3.13 — 2026-09-25
+
+- **The daemon starts when a stale pid file names someone else.** Liveness was
+  `kill(pid, 0)` on `animator.pid`, which only asks whether *some* process has
+  that number. After a reboot — or just a Herdr restart — the number can belong
+  to a browser or an editor helper, and the startup hook then declined to start
+  a daemon: a blank sidebar, the action reporting success, nothing in any log.
+  The launcher now asks the daemon's control endpoint instead, which is named
+  per user and per plugin, so only this daemon can answer it.
+
+  Reported in [#19](https://github.com/hhdebb/herdr-radar/issues/19) by
+  @ashnegiii, confirmed by @IGUNUBLUE.
+
+- **A daemon that stops drawing is replaced.** A daemon can answer its endpoint
+  and still produce no frames, and it holds the endpoint, so nothing could take
+  its place. It now reports two ages: how long since its timer last fired, and
+  how long the frame in flight has been running. The launcher treats a timer
+  silent for thirty seconds, or a frame running for five minutes, as a stall
+  — kept apart so a frame merely waiting on a slow Herdr is never mistaken for
+  one — confirms it a few seconds later, ends it, and starts a fresh daemon,
+  noting why at the top of `animator.err`.
+
+  The cause behind the report: the frame floor compared the wall clock with
+  the time of the last frame, so a clock stepped *backwards* — NTP correcting a
+  fast RTC at boot, exactly when the daemon starts — made every wake look too
+  soon and froze the panel for as long as the step. Scheduling now runs on a
+  monotonic clock. Reported in
+  [#18](https://github.com/hhdebb/herdr-radar/issues/18) by @travisjeffery.
+
+- **A request no longer vanishes when the daemon hangs up mid-exit.** A client
+  that pinged a daemon in the instant it exited could be left waiting on a
+  reply that would never come, and exit silently. It now gets a clean "nobody
+  answered".
+
 ## 1.3.12 — 2026-09-21
 
 - **A group header follows its workspace's name.** The sidebar rewrites the
