@@ -588,11 +588,17 @@ async function framesSurviveAClockStep() {
 async function statusReadsThePing() {
   const control = require('../lib/control');
   const realRequest = control.request;
+  const alive = { ok: true, pid: 7, fire_age_ms: 900, frame_running_ms: 0 };
   const cases = [
     [null, 'none', 'nothing answers the endpoint'],
-    [{ ok: true, pid: 7, frame_age_ms: 900 }, 'healthy', 'a daemon that framed a second ago'],
-    [{ ok: true, pid: 7, frame_age_ms: state.STALLED_MS + 1 }, 'stalled', 'a daemon silent past the threshold'],
-    [{ ok: true, pid: 7, uptime_ms: 5 }, 'healthy', 'a pre-upgrade daemon that reports no age'],
+    [alive, 'healthy', 'a daemon whose timer fired a second ago'],
+    [{ ...alive, fire_age_ms: state.STALLED_MS + 1 }, 'stalled', 'a daemon whose timer has stopped'],
+    // A slow Herdr: a frame that has been waiting on IPC timeouts for a minute
+    // is still a daemon doing its job, and killing it only starts a replacement
+    // that waits on the same Herdr. This is the case review caught.
+    [{ ...alive, frame_running_ms: 60000 }, 'healthy', 'a minute-long frame against a slow Herdr'],
+    [{ ...alive, frame_running_ms: state.HUNG_FRAME_MS + 1 }, 'stalled', 'a frame that never finishes'],
+    [{ ok: true, pid: 7, uptime_ms: 5 }, 'healthy', 'a pre-upgrade daemon that reports no ages'],
   ];
   try {
     for (const [reply, want, label] of cases) {
@@ -605,8 +611,40 @@ async function statusReadsThePing() {
   }
 }
 
+// A long frame keeps the timer firing. The watchdog's thirty-second judgement
+// rests on the heartbeat reaching the scheduler even while a frame is in
+// flight — it only notes a rerun then — so a slow frame must not age the timer.
+async function aLongFrameIsNotASilentTimer() {
+  const { createScheduler } = require('../lib/scheduler');
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let release;
+  const scheduler = createScheduler({
+    floorMs: 120,
+    pollMs: 150,
+    debounceMs: 50,
+    run: () => new Promise((resolve) => (release = resolve)),
+  });
+  scheduler.wake();
+  await pause(300);
+  scheduler.wake();
+  await pause(150);
+  const fireAge = scheduler.fireAgeMs();
+  const running = scheduler.runningForMs();
+  release?.();
+  if (running < 250) {
+    problems.push(`scheduler: a frame in flight for ~400ms reports ${Math.round(running)}ms running`);
+  }
+  if (fireAge > 150) {
+    problems.push(
+      `scheduler: the timer reads ${Math.round(fireAge)}ms silent while a frame is in flight — ` +
+        'a slow frame would look like a dead scheduler and be killed',
+    );
+  }
+}
+
 labelsSurviveAFailedRead()
   .then(framesSurviveAClockStep)
+  .then(aLongFrameIsNotASilentTimer)
   .then(statusReadsThePing)
   .catch((error) => problems.push(`an async check threw — ${error.message}`))
   .then(() => {

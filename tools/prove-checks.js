@@ -218,9 +218,23 @@ const cases = [
   ],
   [
     'lib/state.js',
-    "state: age !== null && age > STALLED_MS ? 'stalled' : 'healthy',",
-    "state: age !== null && age < STALLED_MS ? 'stalled' : 'healthy',",
-    'daemon: stall threshold inverted, so healthy daemons get replaced',
+    'if (fireAge !== null && fireAge > STALLED_MS) {',
+    'if (fireAge !== null && fireAge < STALLED_MS) {',
+    'daemon: timer threshold inverted, so healthy daemons get replaced',
+  ],
+  // The case review caught: judging a frame in flight on the timer's thirty
+  // seconds kills a daemon that is only waiting on a slow Herdr.
+  [
+    'lib/state.js',
+    'if (runningFor !== null && runningFor > HUNG_FRAME_MS) {',
+    'if (runningFor !== null && runningFor > STALLED_MS) {',
+    'daemon: a slow frame judged as a dead timer, so a slow Herdr gets a kill loop',
+  ],
+  [
+    'lib/scheduler.js',
+    '    lastFireAt = clock();\n',
+    '',
+    'daemon: the heartbeat stops counting while a frame runs, so slow frames look stalled',
   ],
   [
     'bin/setup.js',

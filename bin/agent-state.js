@@ -37,14 +37,22 @@ async function spawnAnimator() {
   // Asked of the endpoint, not the pid file (lib/state.js daemonStatus). A
   // stalled daemon still holds the endpoint, so a fresh one could not bind
   // beside it: it has to go first.
-  const status = await state.daemonStatus();
+  let status = await state.daemonStatus();
+  // A stall is confirmed before anything is ended. The ages are measured on a
+  // clock that keeps counting through sleep on some platforms, so a daemon
+  // asked in the first instant after a resume can look silent until its next
+  // heartbeat — two of those later, it has either spoken or it really is stuck.
+  if (status.state === 'stalled') {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    status = await state.daemonStatus();
+  }
   if (status.state === 'healthy') return;
   let note = '';
   if (status.state === 'stalled') {
     const gone = await state.terminate(status.pid);
     note =
       `${new Date().toISOString()} replaced a stalled daemon: pid ${status.pid}, ` +
-      `no frame for ${Math.round(status.frameAgeMs / 1000)}s${gone ? '' : ' (it did not exit)'}\n`;
+      `${status.reason}${gone ? '' : ' (it did not exit)'}\n`;
   }
   // stderr goes to a truncate-on-start log rather than the void: a detached
   // daemon that dies of an uncaught error otherwise just… stops, and the
