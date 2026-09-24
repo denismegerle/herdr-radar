@@ -18,7 +18,6 @@ const claims = [
   ['a header with a comment after it', '[theme.custom] # mine'],
   ['a header with spaces inside the brackets', '[ theme.custom ]'],
   ['a quoted header', '[theme."custom"]'],
-  ['a sub-table header', '[theme.custom.accent]\nfg = "x"'],
   ['an array-of-tables header', '[[theme.custom]]'],
   ['a dotted key under the parent', '[theme]\ncustom.name = "x"'],
   ['a dotted key at the top level', 'theme.custom.name = "x"'],
@@ -48,11 +47,22 @@ const free = [
   ],
   ['a header inside a literal multi-line string', "[keys]\nx = '''\n[theme.custom]\n'''"],
   ['a multi-line string closed on its own line', '[keys]\nx = """abc"""\n[ui]\ny = 1'],
+  // TOML lets a parent table be declared after its sub-table.
+  ['a sub-table header', '[theme.custom.accent]\nfg = "x"'],
+  // Codex again, second round: a comment shaped like an opener, and an
+  // escaped quote inside a basic multi-line string.
+  ['a comment shaped like a string opener, then the real scope', '[ui]\n# x = """\n[other] # """\nsidebar.spaces = 1'],
+  ['a header inside a string past an escaped quote', '[keys]\nx = """\necho \\"""\n  [theme.custom]\n"""'],
 ];
 
 // A string that closes leaves the scanner reading again.
 test('a table after a multi-line string is still seen', () => {
   assert.equal(claimsTable('[keys]\nx = """\ntext\n"""\n[theme.custom]', 'theme.custom'), true);
+});
+
+// A comment shaped like an opener must not hide a real table after it.
+test('a table after a comment shaped like a string opener is still seen', () => {
+  assert.equal(claimsTable('[ui]\n# x = """\n[ui.sidebar.spaces]\nrow_gap = 1', 'ui.sidebar.spaces'), true);
 });
 
 for (const [form, toml] of free) {
