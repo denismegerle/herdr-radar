@@ -343,15 +343,15 @@ const cases = [
   // binding's command reads as tables (#22 review, five shapes).
   [
     'lib/toml-blocks.js',
-    "for (const raw of neutralize(text).split('\n')) {",
-    "for (const raw of text.split('\n')) {",
+    "for (const raw of neutralize(text).split('\\n')) {",
+    "for (const raw of text.split('\\n')) {",
     'config: a TOML snippet inside a string claims the table (#22 review)',
     true,
     'test/foreign-tables.test.js',
   ],
   [
     'lib/toml-blocks.js',
-    "if (escapes && c === '\\') {",
+    "if (escapes && c === '\\\\') {",
     'if (false) {',
     'config: an escaped quote closes a basic string (#22 review)',
     true,
