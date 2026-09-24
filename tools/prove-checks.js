@@ -279,6 +279,17 @@ const cases = [
     'test/control.test.js',
   ],
 
+  // lib/herdr.js — a closed target is done, not failed (#21). Counting it as
+  // a failure retried every closed pane and workspace once a minute forever.
+  [
+    'lib/herdr.js',
+    'const landed = (reply) => !reply.error || GONE.has(reply.error.code);',
+    'const landed = (reply) => !reply.error;',
+    'writes: a closed pane is retried forever (#21, shipped v1.0.0-v1.3.13)',
+    true,
+    'test/dead-targets.test.js',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
