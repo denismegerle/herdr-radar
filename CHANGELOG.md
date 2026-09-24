@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.14 — 2026-09-25
+
+- **A closed pane or workspace is cleared once, then forgotten.** Herdr answers
+  a write to a target that no longer exists with a not-found error, and the
+  daemon counted that as a failed write. Failed writes retry under a backoff
+  capped at a minute that never gives up, so every pane and workspace that
+  ever closed was cleared again once a minute for the daemon's whole life:
+  most of its calls ended in errors, the server log filled with them, and
+  each pending retry kept waking the loop. Not-found now counts as done, and
+  a closed pane also drops any backoff left from a repaint that failed before
+  it closed.
+
+  Reported in [#21](https://github.com/hhdebb/herdr-radar/issues/21) by
+  @IGUNUBLUE.
+
+- **Behaviour is tested with `node --test`.** `npm run check` keeps the
+  invariants; the behaviour cases moved into `test/` as a proper test suite,
+  run by `npm test` and in CI. Nothing changes at runtime.
+
 ## 1.3.13 — 2026-09-25
 
 - **The daemon starts when a stale pid file names someone else.** Liveness was
