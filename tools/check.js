@@ -503,8 +503,112 @@ async function labelsSurviveAFailedRead() {
   }
 }
 
+// Liveness is asked of the endpoint, never of a pid file.
+//
+// `kill(pid, 0)` on the pid file only says that SOME process has the number,
+// and after a restart that can be a browser (#19). The names are gone so a
+// caller cannot keep using them: an async replacement under the old name
+// would have returned a Promise, which is always truthy, and a launcher
+// asking `if (running()) return` would never start a daemon again.
+for (const dir of ['lib', 'bin']) {
+  for (const file of fs.readdirSync(path.join(root, dir))) {
+    if (!file.endsWith('.js')) continue;
+    const text = fs.readFileSync(path.join(root, dir, file), 'utf8');
+    for (const name of ['animatorRunning', 'pidAlive']) {
+      if (text.includes(name)) {
+        problems.push(`${dir}/${file}: still refers to ${name} — ask state.daemonStatus() instead`);
+      }
+    }
+  }
+}
+
+// A wall clock stepped backwards must not stop the frames.
+//
+// The frame floor used to measure `Date.now()` against the last frame, and a
+// backward step made that negative: every wake looked too soon, was pushed to
+// a moment minutes in the future, and the panel stopped drawing for as long as
+// the step while the process answered pings (#18). Driven for real, on the
+// scheduler's own default clock — that default is the thing under test — with
+// its timers collected so none outlives the check, whatever clock it runs on.
+async function framesSurviveAClockStep() {
+  const { createScheduler } = require('../lib/scheduler');
+  const realNow = Date.now;
+  const pending = new Set();
+  const setTimer = (fn, ms) => {
+    const handle = setTimeout(() => {
+      pending.delete(handle);
+      fn();
+    }, ms);
+    pending.add(handle);
+    return handle;
+  };
+  const clearTimer = (handle) => {
+    pending.delete(handle);
+    clearTimeout(handle);
+  };
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let frames = 0;
+  const scheduler = createScheduler({
+    floorMs: 120,
+    pollMs: 150,
+    debounceMs: 50,
+    setTimer,
+    clearTimer,
+    run: async () => {
+      frames += 1;
+    },
+  });
+  try {
+    scheduler.wake();
+    await pause(300);
+    const before = frames;
+    // NTP correcting a fast clock by six minutes, the way #18's machine booted.
+    Date.now = () => realNow.call(Date) - 6 * 60 * 1000;
+    for (let i = 0; i < 4; i += 1) {
+      scheduler.wake();
+      await pause(220);
+    }
+    if (before < 1) {
+      problems.push('scheduler: no frame at all before the clock step — the check itself is broken');
+    } else if (frames - before < 3) {
+      problems.push(
+        `scheduler: ${frames - before} frame(s) in four wakes after the wall clock stepped back six ` +
+          'minutes — the floor is reading the wall clock again, and the panel freezes for the length of the step',
+      );
+    }
+  } finally {
+    Date.now = realNow;
+    for (const handle of pending) clearTimeout(handle);
+  }
+}
+
+// What the watchdog decides from a ping. `stalled` is the state that gets a
+// daemon replaced, so both directions matter: a stall must be named, and a
+// healthy daemon — or one too old to report an age — must not be.
+async function statusReadsThePing() {
+  const control = require('../lib/control');
+  const realRequest = control.request;
+  const cases = [
+    [null, 'none', 'nothing answers the endpoint'],
+    [{ ok: true, pid: 7, frame_age_ms: 900 }, 'healthy', 'a daemon that framed a second ago'],
+    [{ ok: true, pid: 7, frame_age_ms: state.STALLED_MS + 1 }, 'stalled', 'a daemon silent past the threshold'],
+    [{ ok: true, pid: 7, uptime_ms: 5 }, 'healthy', 'a pre-upgrade daemon that reports no age'],
+  ];
+  try {
+    for (const [reply, want, label] of cases) {
+      control.request = async () => reply;
+      const got = (await state.daemonStatus()).state;
+      if (got !== want) problems.push(`daemonStatus: ${label} reads as '${got}', not '${want}'`);
+    }
+  } finally {
+    control.request = realRequest;
+  }
+}
+
 labelsSurviveAFailedRead()
-  .catch((error) => problems.push(`labels: the check itself threw — ${error.message}`))
+  .then(framesSurviveAClockStep)
+  .then(statusReadsThePing)
+  .catch((error) => problems.push(`an async check threw — ${error.message}`))
   .then(() => {
     if (problems.length) {
       console.error(problems.join('\n'));

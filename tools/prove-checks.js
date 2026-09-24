@@ -208,6 +208,27 @@ const cases = [
     'labels: a failed read does not take the TTL, so every frame asks again',
   ],
 
+  // The daemon's liveness (#18, #19): frames on a monotonic clock, liveness
+  // asked of the endpoint, and a stall recognised as one.
+  [
+    'lib/scheduler.js',
+    'clock = () => performance.now(),',
+    'clock = () => Date.now(),',
+    'daemon: frame floor on the wall clock, so a backward step freezes the panel (#18)',
+  ],
+  [
+    'lib/state.js',
+    "state: age !== null && age > STALLED_MS ? 'stalled' : 'healthy',",
+    "state: age !== null && age < STALLED_MS ? 'stalled' : 'healthy',",
+    'daemon: stall threshold inverted, so healthy daemons get replaced',
+  ],
+  [
+    'bin/setup.js',
+    'state.daemonStatus().then(',
+    'state.animatorRunning; state.daemonStatus().then(',
+    'daemon: a caller still asks the pid file (#19)',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',

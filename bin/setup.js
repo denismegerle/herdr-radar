@@ -22,7 +22,10 @@ const notes = setup.ensure({ force: process.argv.includes('--force') });
 for (const note of notes) console.log(note);
 if (notes.length === 0) console.log('setup: nothing to do');
 
-if (!state.animatorRunning()) {
+// The launcher decides what to do with a stalled daemon; this only asks
+// whether there is a working one already.
+state.daemonStatus().then(({ state: status }) => {
+  if (status === 'healthy') return;
   detachedNode(path.join(__dirname, 'agent-state.js'));
   console.log('daemon: started');
-}
+});
