@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.15 — 2026-09-25
+
+- **A table you already have keeps only its block out.** The plugin writes
+  `[theme.custom]` and the `[ui.sidebar.*]` tables itself, and TOML allows a
+  table once. A copy in your own config used to refuse the whole install —
+  and was only noticed in its header form: `custom.name = …` under `[theme]`,
+  or an inline table, slipped past, the block was appended on top, and Herdr
+  fell back to defaults for the entire file, taking every plugin with it.
+  Every form is seen now, and the block that would collide stays out while
+  the others install: with your own sidebar tables the Agents panel stays
+  Herdr's, with your own theme table your colours stay. The note says which
+  block and why. The check reads the file as TOML, not as lines; if a
+  config it misjudges ever turns up, the effect is a skipped block and a
+  note, never a broken file.
+
+- **The reason reaches the screen.** Herdr shows a failed action as
+  `failed (exit 1)` and files the output in the plugin log, which nobody
+  installing for the first time knows to read. A skipped block or a refusal
+  is now posted as a Herdr notification as well.
+
+- **A write is checked before it is kept.** Every change to `config.toml` is
+  followed by `herdr config check`; on a parse error the file is restored
+  from the backup and the parser's message becomes the note. A warning, such
+  as an unknown key, is not a parse error and does not block.
+
+  Reported in [#22](https://github.com/hhdebb/herdr-radar/issues/22) by
+  @skylarmb.
+
 ## 1.3.14 — 2026-09-25
 
 - **A closed pane or workspace is cleared once, then forgotten.** Herdr answers
