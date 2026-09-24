@@ -39,6 +39,9 @@ test('a closed pane is cleared once and then forgotten', async (t) => {
   t.mock.method(ipc, 'call', error('pane_not_found'));
   const frame = new Frame('test');
   frame.lastLine.set('w9:p2', 'painted');
+  // A repaint that failed while the pane was still open: its backoff is for a
+  // pane that no longer exists, and has to go with it.
+  frame.failedAt.set('line:w9:p2', { count: 1, until: 2000 });
 
   let jobs = [];
   frame.clearGone(new Set(), 0, jobs);

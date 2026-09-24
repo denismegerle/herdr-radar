@@ -290,6 +290,16 @@ const cases = [
     'test/dead-targets.test.js',
   ],
 
+  // lib/frame.js — a closed pane takes its other write backoffs with it.
+  [
+    'lib/frame.js',
+    "for (const kind of ['line', 'logo', 'sort']) this.failedAt.delete(`${kind}:${pane}`);",
+    '',
+    'writes: a closed pane keeps an earlier backoff alive (#21)',
+    true,
+    'test/dead-targets.test.js',
+  ],
+
   // lib/workspace-order.js — the order must settle or it loops over IPC.
   [
     'lib/workspace-order.js',
