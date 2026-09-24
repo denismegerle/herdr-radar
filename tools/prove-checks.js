@@ -338,29 +338,22 @@ const cases = [
     'test/checked-write.test.js',
   ],
 
-  // lib/toml-blocks.js — a header-shaped line inside a multi-line string is
-  // text, not a claim.
+  // lib/toml-blocks.js — strings and comments are made inert before the
+  // scanner reads a line; without that pass, a TOML snippet inside a key
+  // binding's command reads as tables (#22 review, five shapes).
   [
     'lib/toml-blocks.js',
-    'if (opened) {',
+    "for (const raw of neutralize(text).split('\n')) {",
+    "for (const raw of text.split('\n')) {",
+    'config: a TOML snippet inside a string claims the table (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
+    "if (escapes && c === '\\') {",
     'if (false) {',
-    'config: a TOML snippet inside a key binding claims the table (#22 review)',
-    true,
-    'test/foreign-tables.test.js',
-  ],
-  [
-    'lib/toml-blocks.js',
-    "if (line.startsWith('#')) continue;",
-    '',
-    'config: a comment shaped like a string opener hides the tables after it (#22 review)',
-    true,
-    'test/foreign-tables.test.js',
-  ],
-  [
-    'lib/toml-blocks.js',
-    `(quote === "'''" ? rest.includes("'''") : /(^|[^\\\\])"""/.test(rest))`,
-    'rest.includes(quote)',
-    'config: an escaped quote closes a basic multi-line string (#22 review)',
+    'config: an escaped quote closes a basic string (#22 review)',
     true,
     'test/foreign-tables.test.js',
   ],
@@ -369,6 +362,14 @@ const cases = [
     'if (current === table) return true;',
     'if (current === table || current.startsWith(under)) return true;',
     'config: a sub-table header claims its parent (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
+    'if (current && !table.startsWith(`${current}.`)) continue;',
+    '',
+    'config: a key under a sub-table claims the parent (#22 review)',
     true,
     'test/foreign-tables.test.js',
   ],

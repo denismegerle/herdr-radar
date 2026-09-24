@@ -24,6 +24,11 @@ const claims = [
   ['an inline table', '[theme]\ncustom = { name = "x" }'],
   ['an inline table above it', 'theme = { custom = { name = "x" } }'],
   ['a scalar where the table would go', '[theme]\ncustom = 1'],
+  ['a dotted key with a quoted segment', '[theme]\n"custom".name = 1'],
+  // A string, a comment or an escape before it leaves the scanner reading.
+  ['a header after a multi-line string in an array', '[ui]\nx = [ """\ntext\n""" ]\n[theme.custom]'],
+  ['a header after a comment shaped like an opener', '[ui]\nx = 1 # = """\n[theme.custom]'],
+  ['a header after an even run of backslashes', '[ui]\nx = """abc\\\\"""\n[theme.custom]'],
 ];
 
 for (const [form, toml] of claims) {
@@ -53,6 +58,23 @@ const free = [
   // escaped quote inside a basic multi-line string.
   ['a comment shaped like a string opener, then the real scope', '[ui]\n# x = """\n[other] # """\nsidebar.spaces = 1'],
   ['a header inside a string past an escaped quote', '[keys]\nx = """\necho \\"""\n  [theme.custom]\n"""'],
+  // Codex, third round: strings do not respect lines, so the scanner must
+  // not either. Each of these fooled a per-line reading.
+  ['a multi-line string inside an array', '[ui]\nx = [ """\n  [theme.custom]\n"""]'],
+  [
+    'a second string opened on the line that closed the first',
+    '[ui]\nx = { a = """ok""", b = """\n  [theme.custom]\n""" }',
+  ],
+  ['an opener inside a comment after a value', '[theme]\nx = 1 # = """\n[other] # """\ncustom.name = 1'],
+  ['an opener inside a one-line string', '[theme]\nx = \'= """\'\n[other]\ncustom.name = 1'],
+  ['an opener inside a quoted key', '[theme]\n\'x = """\' = 1\n[other]\ncustom.name = 1'],
+  [
+    'an even run of backslashes before the closing quotes',
+    '[theme]\nx = """abc\\\\"""\n[other] # """\ncustom.name = 1',
+  ],
+  ['a bracket inside a quoted header name', '[theme]\n["a]b"]\ncustom.name = 1'],
+  ['a bracket inside a quoted header segment', '[theme]\n[other."a]b"]\ncustom.name = 1'],
+  ['CRLF line endings', '[theme]\r\nname = "x"\r\n[other]\r\ncustom.name = 1\r\n'],
 ];
 
 // A string that closes leaves the scanner reading again.
