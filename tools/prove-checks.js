@@ -359,6 +359,22 @@ const cases = [
   ],
   [
     'lib/toml-blocks.js',
+    "const FILLER = '·';",
+    "const FILLER = '_';",
+    'config: the filler spells a bare key, so "rows#by#agent" reads as rows_by_agent (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
+    'delimiter.length === 3 && extra < 2 && text[i] === delimiter[0]',
+    'false',
+    'config: a string ending in four quotes opens another (#22 review)',
+    true,
+    'test/foreign-tables.test.js',
+  ],
+  [
+    'lib/toml-blocks.js',
     'if (current === table) return true;',
     'if (current === table || current.startsWith(under)) return true;',
     'config: a sub-table header claims its parent (#22 review)',

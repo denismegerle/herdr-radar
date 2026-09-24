@@ -75,11 +75,29 @@ const free = [
   ['a bracket inside a quoted header name', '[theme]\n["a]b"]\ncustom.name = 1'],
   ['a bracket inside a quoted header segment', '[theme]\n[other."a]b"]\ncustom.name = 1'],
   ['CRLF line endings', '[theme]\r\nname = "x"\r\n[other]\r\ncustom.name = 1\r\n'],
+  // Codex, fourth round: the filler must not spell a bare key, and a
+  // multi-line string may end in four or five quotes.
+  ['a quoted name that differs only in the neutralized characters', '[theme."cus#tom"]\nx = 1'],
+  ['a literal quoted name with a backslash', "[theme.'cus\\tom']\nx = 1"],
+  [
+    'a string ending in four quotes, then a comment with more',
+    '[theme]\nx = """abc"""" # """"\n[other] # """\ncustom.name = 1',
+  ],
+  ['a literal string ending in five quotes', "[theme]\nx = '''abc'''''\n[other]\ncustom.name = 1"],
 ];
 
 // A string that closes leaves the scanner reading again.
 test('a table after a multi-line string is still seen', () => {
   assert.equal(claimsTable('[keys]\nx = """\ntext\n"""\n[theme.custom]', 'theme.custom'), true);
+});
+
+// The filler that replaces a neutralized character must never spell a bare
+// key: with `_` these read as our own rows_by_agent table.
+test('a quoted name is never read as the bare name the filler would spell', () => {
+  const table = 'ui.sidebar.agents.rows_by_agent';
+  assert.equal(claimsTable('[ui.sidebar.agents."rows#by#agent"]\nx = 1', table), false);
+  assert.equal(claimsTable("[ui.sidebar.agents.'rows\\by_agent']\nx = 1", table), false);
+  assert.equal(claimsTable('[ui.sidebar.agents]\n"rows.by.agent" = 1', table), false);
 });
 
 // A comment shaped like an opener must not hide a real table after it.
