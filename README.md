@@ -19,8 +19,11 @@
 ## Harness fork
 
 This checkout is pinned by `denismegerle/harness` and linked, not installed from
-GitHub. It preserves auto-title's stable dim `$task` as a **second agent row**,
-and honours `HERDR_CONFIG_PATH` for the managed config block. See
+GitHub. Every agent has exactly two selectable rows: an inline workspace label
+with its activity/title, then auto-title's stable, subdued `$task`. Separate
+workspace headers and trailing spacer rows were removed because Herdr highlights
+them as part of the first/last agent. The fork also honours `HERDR_CONFIG_PATH`
+for the managed config block. See
 [`VENDORED.md`](VENDORED.md) and the harness [`docs/setup.md`](../../../docs/setup.md)
 for the cross-platform installation; the upstream Quick start below installs
 **upstream**, not this fork.
@@ -41,17 +44,19 @@ each pane to find out.
 
 herdr-radar puts that information on the sidebar: a finished session keeps its tick until you
 have looked, a question keeps its mark until you answer, sessions that have gone quiet fade,
-sessions of one project sit under one header, and the busiest project sits on top.
+sessions of one project stay contiguous with an inline workspace label, and the busiest project sits on top.
 
 ## What you get
 
-<img src="assets/sidebar.webp" alt="herdr-radar sidebar on a light and a dark desktop: groups, state marks, activity order" width="100%">
+<img src="assets/sidebar.webp" alt="upstream herdr-radar sidebar: state marks and activity order; this fork uses two inline rows instead" width="100%">
+
+The upstream screenshot above predates this fork's compact two-row layout.
 
 - **State does not slip away.** The tick stays until you focus the pane, the question mark
   stays until the agent works again, idle splits into three tiers by time since the last
   turn, and abandoned sessions dim as a whole row.
-- **The list has structure.** Workspaces get headers, git worktrees hang under their repository
-  as a tree, the halves of a split screen hang off the pane they came from, the busiest project
+- **The list has structure.** Workspaces are labeled inline on their first agent,
+  git worktrees nest under their repository, split panes stay together, the busiest project
   sorts first, and the Spaces column takes the same colours.
 - **The surroundings follow.** The tab bar shows the current directory, Herdr's theme switches
   with the desktop's light and dark, and one settings popup holds every option.
@@ -132,17 +137,16 @@ covered under Troubleshooting at https://github.com/hhdebb/herdr-radar
 ## What the sidebar looks like
 
 ```
-dashboard
-  ⣟ ✳ Implement OAuth scopes            ← working: braille spinner, title in the vendor's colour
-  ✓ ✳ Wire retry budget into dispatcher ← done: green tick, held until you look
-  └─  feature/mc-13200                  ← a worktree under its repository
-    ? Λ Which env file should I edit?   ← blocked: a pulsing red mark, it is asking you
-billing
-  ✳ Trace duplicate charges             ← idle: just stopped
-  ✳ Migrate invoices table              ← idle for two hours: the whole row dims
+dashboard · ⣟ ✳ Implement OAuth scopes  ← working: workspace inline with agent
+  Implement OAuth scope checks          ← stable $task, subdued second line
+  ✓ ✳ Wire retry budget                ← done: green tick until you look
+  Retry budget for publisher            ← stable task
+billing · ✳ Trace duplicate charges    ← next workspace; no selectable gap
+  Investigate duplicate charges         ← stable task
 ```
 
-One row per agent: logo, title, colour by state, motion and marks in front of the title. Two
+Two rows per agent: live status/title (inline workspace on the first agent of a group),
+then stable task. No extra selectable header or spacer. Two
 orders: `active` keeps the groups and ranks by activity at both levels; `recent` is a flat
 list by activity — `prefix+a` flips between them. The whole panel can be handed back to
 Herdr's own rendering from the settings popup.
@@ -241,12 +245,11 @@ the config file and restarts the daemon.
 | `idle_grace_seconds` | `2.5` | idle must persist this long to count as a finished turn |
 | `activity_fresh_minutes` | `15` | how long after the last turn a pane still reads as fresh |
 | `activity_stale_minutes` | `120` | how long without a turn before the row dims |
-| `group_indent` | `2` | member indent under a header; `0` for a flat list |
-| `group_gap` | `true` | a blank row between groups |
+| `group_indent` | `2` | member indent under the first agent; `0` for a flat list |
 | `reorder_workspaces` | `false` | make Herdr's workspace indices follow Radar's activity order |
 | `show_tab` | `false` | tab number in front of the title |
-| `trim_group_prefix` | `true` | drop the workspace name from a title when the header above already shows it |
-| `worktree_mark` | `U+F418` | the mark on a worktree header, needs a Nerd Font; empty for none |
+| `trim_group_prefix` | `true` | drop a redundant workspace prefix from the live title in grouped view |
+| `worktree_mark` | `U+F418` | the mark on an inline worktree label, needs a Nerd Font; empty for none |
 | `follow_appearance` | `true` | switch Herdr's theme with the desktop's light/dark |
 | `colors.active_row_bg_light` | `#b9cdf2` | selected-row fill for a light theme; empty keeps the theme's own |
 | `colors.active_row_bg_dark` | `#414868` | selected-row fill for a dark theme |
@@ -270,7 +273,7 @@ switch_workspace = "prefix+shift+1..9"
 The first two are live state; the rest live in
 `$(herdr plugin config-dir hhdebb.herdr-radar)/config.toml` and can be edited by hand —
 then `state-stop` and `state-start`. The file appears the first time the popup saves; before
-that, create it with the keys above (booleans unquoted: `group_gap = false`).
+that, create it with the keys above (booleans unquoted: `follow_appearance = false`).
 
 ## Troubleshooting
 

@@ -128,7 +128,6 @@ const FIELDS = [
     fallback: 2,
     help: 'Spaces members sit in under a workspace header; 0 = flat list.',
   },
-  { key: 'group_gap', kind: 'bool', fallback: true, help: 'A blank row between workspace groups.' },
   { key: 'show_tab', kind: 'bool', fallback: false, help: 'Show the tab number on the state line.' },
   {
     key: 'trim_group_prefix',

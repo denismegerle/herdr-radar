@@ -12,6 +12,8 @@ process.env.XDG_STATE_HOME = path.join(dir, 'state');
 process.env.HERDR_CONFIG_PATH = path.join(dir, 'checkout', 'herdr', 'config.toml');
 const paths = require('../lib/paths');
 const managed = require('../lib/managed-config');
+const state = require('../lib/state');
+const herdr = require('../lib/herdr');
 
 test('repo config override does not move the machine-local plugin config', () => {
   assert.equal(paths.herdrConfigPath(), process.env.HERDR_CONFIG_PATH);
@@ -33,7 +35,15 @@ test('stable task row survives generated fallback, vendor, repair, and appearanc
     const block = managed.sidebarBlock(variant);
     assert.ok(block.includes(`[ui.sidebar.agents.rows_by_agent]`));
     assert.ok(block.includes('claude = ['), 'claude must have a vendor-specific row');
-    assert.ok(block.split(taskToken).length >= 3, 'fallback and claude rows need the task');
+    for (const pattern of [/^rows = (.+)$/m, /^claude = (.+)$/m]) {
+      const literal = pattern.exec(block)?.[1];
+      assert.ok(literal, 'missing agent row definition');
+      const rows = managed.topLevelRows(literal.slice(1, -1));
+      assert.equal(rows.length, 2, 'selection must have only activity and task rows');
+      assert.match(rows[0], /token = "\$group"/, 'workspace label stays inline');
+      assert.match(rows[1], /token = "\$task"/, 'stable task is the second row');
+      assert.ok(!literal.includes('$gap'), 'spacer must not be selectable');
+    }
   }
   assert.equal(managed.apply().changed, true);
   assert.ok(fs.readFileSync(file, 'utf8').includes(taskToken));
@@ -46,4 +56,26 @@ test('stable task row survives generated fallback, vendor, repair, and appearanc
   assert.ok(fs.readFileSync(file, 'utf8').includes(taskToken));
   assert.equal(managed.apply().ok, true);
   assert.ok(fs.readFileSync(file, 'utf8').includes(taskToken));
+});
+
+test('group metadata clears legacy spacer tokens on every pane', async () => {
+  const original = herdr.reportMetadataAsync;
+  const writes = new Map();
+  herdr.reportMetadataAsync = async (pane, _source, tokens) => {
+    writes.set(pane, tokens);
+    return true;
+  };
+  try {
+    const entries = [
+      { pane: 'p1', workspace: 'w1' },
+      { pane: 'p2', workspace: 'w1' },
+    ];
+    assert.equal((await state.writeGroups('test', entries, new Map([['w1', 'main_remote']]))).ok, true);
+    assert.equal(writes.get('p1').group, 'main_remote');
+    assert.equal(writes.get('p2').group, null);
+    assert.equal(writes.get('p1').gap, null);
+    assert.equal(writes.get('p2').gap, null);
+  } finally {
+    herdr.reportMetadataAsync = original;
+  }
 });
