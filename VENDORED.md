@@ -4,6 +4,13 @@ Upstream: https://github.com/hhdebb/herdr-radar (MIT). Fork: https://github.com/
 Base: `v1.3.15` (`4b3b82d237a0d9c86aec70366219ce1c8807b0f7`); changes live on `custom`.
 The harness superproject pins an exact fork commit; a new upstream release does not auto-update installations.
 
+Known Herdr limitation: workspace headers and trailing blank spacers are
+rendered as rows attached to the first/last pane. Herdr 0.9.1 highlights the
+whole pane rectangle and treats it as one click target; Radar cannot style or
+exclude those rows separately. A compact two-row inline-label experiment was
+reverted because it lost the desired separate workspace heading. Fix this in
+Herdr's sidebar renderer, not by silently changing Radar grouping.
+
 Differences from upstream:
 - Generate a dim `$task` second agent row (published by `denismegerle.auto-title`) for both the fallback and agent-specific rows; preserve it during config repair and appearance changes.
 - Honor `HERDR_CONFIG_PATH`, including the repo config on both macOS and Windows, while keeping plugin settings under Herdr's per-machine config directory.
