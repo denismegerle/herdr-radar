@@ -7,7 +7,7 @@ name: CI
 # nor the reviewer saw them until after the fact.
 on:
   push:
-    branches: [main]
+    branches: [main, custom]
   pull_request:
   workflow_dispatch:
 
@@ -46,6 +46,21 @@ jobs:
       # must turn the check red. A check that can only pass is not a check.
       - run: npm run prove
       - run: npx prettier --check .
+
+  platform-test:
+    name: tests (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm test
 
   font:
     name: font is not stale

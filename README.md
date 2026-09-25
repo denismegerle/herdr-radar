@@ -16,6 +16,15 @@
 
 ---
 
+## Harness fork
+
+This checkout is pinned by `denismegerle/harness` and linked, not installed from
+GitHub. It preserves auto-title's stable dim `$task` as a **second agent row**,
+and honours `HERDR_CONFIG_PATH` for the managed config block. See
+[`VENDORED.md`](VENDORED.md) and the harness [`docs/setup.md`](../../../docs/setup.md)
+for the cross-platform installation; the upstream Quick start below installs
+**upstream**, not this fork.
+
 ## What it is
 
 A [Herdr](https://herdr.dev) plugin that turns the sidebar's Agents list into something you
