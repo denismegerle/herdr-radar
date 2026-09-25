@@ -19,8 +19,12 @@
 ## Harness fork
 
 This checkout is pinned by `denismegerle/harness` and linked, not installed from
-GitHub. It preserves auto-title's stable dim `$task` as a **second agent row**,
-and honours `HERDR_CONFIG_PATH` for the managed config block. See
+GitHub. It restores upstream's **single agent line**, using auto-title's stable
+`$task` as the title when present (then Herdr's pane/terminal title as fallback),
+and honours `HERDR_CONFIG_PATH` for the managed config block. The screenshot
+shows clipped titles, not scrolling or cycling. A separate workspace header and
+trailing spacer remain, as in upstream; Herdr currently highlights those when
+their first/last agent is focused (see `VENDORED.md`). See
 [`VENDORED.md`](VENDORED.md) and the harness [`docs/setup.md`](../../../docs/setup.md)
 for the cross-platform installation; the upstream Quick start below installs
 **upstream**, not this fork.
@@ -142,8 +146,8 @@ billing
   ✳ Migrate invoices table              ← idle for two hours: the whole row dims
 ```
 
-One row per agent: logo, title, colour by state, motion and marks in front of the title. Two
-orders: `active` keeps the groups and ranks by activity at both levels; `recent` is a flat
+One row per agent: logo, state, vendor and stable task (if available), clipped
+at the sidebar edge. There is no automatic title marquee. Two orders: `active` keeps the groups and ranks by activity at both levels; `recent` is a flat
 list by activity — `prefix+a` flips between them. The whole panel can be handed back to
 Herdr's own rendering from the settings popup.
 
