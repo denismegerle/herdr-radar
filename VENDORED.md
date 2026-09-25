@@ -5,7 +5,7 @@ Base: `v1.3.15` (`4b3b82d237a0d9c86aec70366219ce1c8807b0f7`); changes live on `c
 The harness superproject pins an exact fork commit; a new upstream release does not auto-update installations.
 
 Differences from upstream:
-- Generate exactly two selectable rows per agent: live title with the workspace label inline on the first pane, then a subdued `$task` (published by `denismegerle.auto-title`). Upstream's separate group header and trailing blank spacer were attached to the first/last pane and made selection highlight three rows. Keep task layout during config repair and appearance changes; clear stale `$gap` metadata.
+- Generate a dim `$task` second agent row (published by `denismegerle.auto-title`) for both the fallback and agent-specific rows; preserve it during config repair and appearance changes.
 - Honor `HERDR_CONFIG_PATH`, including the repo config on both macOS and Windows, while keeping plugin settings under Herdr's per-machine config directory.
 - Repair already-installed managed blocks on a fresh machine so a shared repo config gets that OS's tab-bar command (`cat` on macOS, `type` on Windows). Run regression tests on macOS and Windows in the fork's CI.
 
